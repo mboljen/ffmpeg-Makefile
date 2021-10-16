@@ -1,0 +1,141 @@
+# Makefile for ffmpeg
+#
+#
+# $$ Date: 2020-07-14 08:49:13 CEST (Di, 14 Jul 2020) $$
+#
+#
+# Use this Makefile to convert any video in the current working directory
+# to MP4 format using consistent settings with regard to video and audio
+# quality.
+#
+#
+# The following Make variables are supported:
+#
+#
+# IN
+#     Specify the input videos to be processed.  By default, all MTS, MOV,
+#     VOB and WEBM files in the current working directoy will be converted.
+#
+#
+# STREAMS
+#     Specify the streams of the input file to be mapped to the output video.
+#     By default, only the video strean and the first audio stream are taken
+#     into account (default: 0 1).
+#
+#
+# CRF
+#     Specifies the CRF quality factor (default: 23).
+#
+#
+# CROP
+#     Input videos can be cropped to remove any black borders.  CROP takes
+#     one of the following values:
+#
+#     'disabled|false|no' = No cropping
+#     'auto' = Auto-detect cropping area (default), requires `cropdetect'
+#     '<w>:<h>:<x0>:<y0>' = User-defined cropping area
+
+
+# Commands
+#FFMPEG := ffmpeg
+FFMPEG := ffmpeg
+CROPDETECT := cropdetect
+
+
+# Input videos
+ifndef IN
+$(warning Variable IN undefined)
+IN := $(wildcard *.mts *.MTS *.mkv *.MKV *.mov *.MOV *.vob *.VOB *.webm *.WEBM)
+endif
+
+
+# User-defined options
+CRF ?= 23
+MAP ?= -map 0:v -map 0:a?
+
+
+# Video and audio options
+CVOPT ?= -c:v h264 -crf $(CRF)
+CAOPT ?= -c:a copy
+
+
+# User-defined options
+OPT ?=
+
+
+# Output filenames and mapping options
+OUT := $(addsuffix .mp4, $(basename $(IN)))
+
+
+# Function to invoke `cropdetect'
+define cropfun
+$(shell $(CROPDETECT) $(1))
+endef
+
+
+# Assemble filter option for cropping
+ifdef CROP
+ifeq ($(CROP),disabled)
+$(warning Auto-crop disabled)
+CROPOPT=
+else ifeq ($(CROP),no)
+$(warning Auto-crop disabled)
+CROPOPT=
+else ifeq ($(CROP),false)
+$(warning Auto-crop disabled)
+CROPOPT=
+else ifeq ($(CROP),auto)
+$(warning Auto-crop enabled)
+CROPOPT=-vf "$(call cropfun,$<)"
+else
+$(info Manual crop $(CROP))
+CROPOPT:=-vf "crop=$(CROP)"
+endif
+else
+$(warning Auto-crop disabled)
+CROPOPT=
+endif
+
+
+all: info $(OUT)
+
+
+%.mp4: %.mkv
+	$(FFMPEG) -y -i $< $(CROPOPT) $(MAP) $(CVOPT) $(CAOPT) $(OPT) $@
+
+%.mp4: %.webm
+	$(FFMPEG) -y -i $< $(CROPOPT) $(MAP) $(CVOPT) $(CAOPT) $(OPT) $@
+
+%.mp4: %.MTS
+	$(FFMPEG) -y -i $< $(CROPOPT) $(MAP) $(CVOPT) $(CAOPT) $(OPT) $@
+
+%.mp4: %.MOV
+	$(FFMPEG) -y -i $< $(CROPOPT) $(MAP) $(CVOPT) $(CAOPT) $(OPT) $@
+
+%.mp4: %.VOB
+	$(FFMPEG) -y -i $< $(CROPOPT) $(MAP) $(CVOPT) $(CAOPT) $(OPT) $@
+
+%.mp4: %.vob
+	$(FFMPEG) -y -i $< $(CROPOPT) $(MAP) $(CVOPT) $(CAOPT) $(OPT) $@
+
+
+
+#.SECONDEXPANSION:
+#
+#%.mp4: $$(wildcard %.mts)  $$(wildcard %.MTS) \
+#       $$(wildcard %.mkv)  %%(wildcard %.MKV) \
+#       $$(wildcard %.mov)  $$(wildcard %.MOV) \
+#       $$(wildcard %.vob)  $$(wildcard %.VOB) \
+#       $$(wildcard %.webm) $$(wildcard %.WEBM)
+#	$(FFMPEG) -y -i $< $(CROPOPT) $(MAP) $(CVOPT) $(CAOPT) $(OPT) $@
+
+
+info:
+	$(info FFMPEG = $(FFMPEG))
+	$(info IN     = $(IN))
+	$(info OUT    = $(OUT))
+	$(info CROP   = $(CROP))
+	$(info MAP    = $(MAP))
+	$(info CVOPT  = $(CVOPT))
+	$(info CAOPT  = $(CAOPT))
+	$(info OPT    = $(OPT))
